@@ -5,93 +5,215 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sistema de Votação</title>
   <style>
-    body { font-family: sans-serif; max-width: 600px; margin: 20px auto; padding: 20px; background: #f9f9f9; }
-    .card { background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 15px; }
+    :root {
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --border: #e2e8f0;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+      border: 1px solid var(--border);
+    }
+
     .step { display: none; }
     .active { display: block; }
-    button { padding: 10px 15px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; width: 100%; margin-top: 10px; font-weight: bold; }
-    button.alt { background: #6c757d; }
-    input, select { width: 100%; padding: 10px; margin: 6px 0; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
-    .msg { color: #d9534f; margin-top: 8px; font-weight: bold; }
-    .nav-admin { text-align: right; margin-bottom: 10px; }
-    .nav-admin a { color: #555; text-decoration: none; font-size: 14px; cursor: pointer; }
+
+    h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; text-align: center; color: var(--text); }
+    p.subtitle { color: var(--text-muted); text-align: center; font-size: 0.9rem; margin-bottom: 24px; }
+    h3 { font-size: 1.1rem; margin: 20px 0 10px 0; color: var(--text); }
+
+    label { font-size: 0.875rem; font-weight: 600; color: var(--text); display: block; margin-bottom: 6px; }
+
+    input, select {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 1rem;
+      margin-bottom: 16px;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+    }
+
+    button {
+      width: 100%;
+      padding: 12px 16px;
+      border: none;
+      border-radius: 8px;
+      background-color: var(--primary);
+      color: white;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      margin-top: 8px;
+    }
+
+    button:hover { background-color: var(--primary-hover); }
+    
+    button.alt {
+      background-color: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    button.alt:hover { background-color: #f1f5f9; color: var(--text); }
+
+    button.danger {
+      background-color: var(--danger);
+    }
+    button.danger:hover { background-color: var(--danger-hover); }
+
+    .nav-admin { text-align: center; margin-bottom: 16px; }
+    .nav-admin a { color: var(--text-muted); text-decoration: none; font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: color 0.2s; }
+    .nav-admin a:hover { color: var(--primary); }
+
+    .radio-card {
+      display: flex;
+      align-items: center;
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .radio-card:hover { border-color: var(--primary); background: #f8fafc; }
+    .radio-card input { width: auto; margin-bottom: 0; margin-right: 12px; }
+
+    .msg { color: var(--danger); font-size: 0.875rem; text-align: center; margin-top: 12px; font-weight: 500; }
+    
+    .divider { height: 1px; background-color: var(--border); margin: 24px 0; }
+
+    .result-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .badge {
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .badge-gold { background-color: #fef3c7; color: #d97706; }
+    .badge-silver { background-color: #e2e8f0; color: #475569; }
   </style>
 </head>
 <body>
 
-  <div class="nav-admin">
-    <a onclick="alternarTelaAdmin()">🔐 Painel do Treinador / Admin</a>
-  </div>
-
-  <!-- TELA 1: IDENTIFICAÇÃO DO ELEITOR -->
-  <div id="step-login" class="step active card">
-    <h2>Votação da Equipe</h2>
-    <label>Digite seu Código ou Nome:</label>
-    <input type="text" id="input-eleitor" placeholder="Ex: 101 ou Maria">
-    <button onclick="validarEleitor()">Entrar para Votar</button>
-    <div id="msg-login" class="msg"></div>
-  </div>
-
-  <!-- TELA 2: VOTACAO -->
-  <div id="step-votacao" class="step card">
-    <h2 id="boas-vindas"></h2>
-    
-    <h3>1. Selecione a Capitã:</h3>
-    <div id="lista-capitas"></div>
-
-    <h3>2. Selecione a Sub-Capitã:</h3>
-    <div id="lista-subcapitas"></div>
-
-    <button onclick="confirmarVoto()">Confirmar Voto</button>
-    <div id="msg-voto" class="msg"></div>
-  </div>
-
-  <!-- TELA 3: SUCESSO -->
-  <div id="step-sucesso" class="step card" style="text-align: center;">
-    <h2>✅ Voto Registrado!</h2>
-    <p>Seu voto foi contabilizado com sucesso.</p>
-  </div>
-
-  <!-- TELA 4: PAINEL DE ADMINISTRAÇÃO -->
-  <div id="step-admin" class="step card">
-    <h2>🔐 Painel de Gerenciamento</h2>
-    
-    <div id="admin-login-box">
-      <input type="password" id="senha-admin-input" placeholder="Digite a senha de administrador">
-      <button onclick="autenticarAdmin()">Acessar Painel</button>
+  <div class="container">
+    <div class="nav-admin">
+      <a onclick="alternarTelaAdmin()">🔐 Painel do Treinador / Admin</a>
     </div>
 
-    <div id="admin-conteudo" style="display:none;">
-      <h3>1. Cadastrar Eleitora</h3>
-      <input type="text" id="cad-eleitor-nome" placeholder="Nome da Atleta">
-      <input type="text" id="cad-eleitor-codigo" placeholder="Código Único (Ex: número da camisa)">
-      <button onclick="cadastrarEleitora()">Salvar Eleitora</button>
-
-      <hr style="margin: 20px 0;">
-
-      <h3>2. Cadastrar Candidata (Dia do Evento)</h3>
-      <input type="text" id="cad-candidata-nome" placeholder="Nome da Candidata">
-      <select id="cad-candidata-cargo">
-        <option value="capita">Capitã</option>
-        <option value="sub_capita">Sub-Capitã</option>
-      </select>
-      <button onclick="cadastrarCandidata()">Salvar Candidata</button>
-
-      <hr style="margin: 20px 0;">
-
-      <button class="alt" onclick="carregarResultados()">📊 Ver Apuração dos Votos</button>
-      <div id="painel-resultados" style="margin-top: 15px;"></div>
+    <!-- TELA 1: LOGIN ELEITOR -->
+    <div id="step-login" class="step active card">
+      <h2>Votação da Equipe</h2>
+      <p class="subtitle">Identifique-se para votar</p>
       
-      <button class="alt" onclick="voltarParaVotacao()" style="margin-top:20px;">Voltar para Tela de Votação</button>
+      <label>Seu Código ou Nome</label>
+      <input type="text" id="input-eleitor" placeholder="Ex: 101 ou Maria">
+      <button onclick="validarEleitor()">Entrar para Votar</button>
+      <div id="msg-login" class="msg"></div>
     </div>
-    <div id="msg-admin" class="msg"></div>
+
+    <!-- TELA 2: VOTAÇÃO -->
+    <div id="step-votacao" class="step card">
+      <h2 id="boas-vindas"></h2>
+      <p class="subtitle">Escolha sua candidata para a liderança</p>
+
+      <div id="lista-candidatas"></div>
+
+      <button onclick="confirmarVoto()">Confirmar Voto</button>
+      <div id="msg-voto" class="msg"></div>
+    </div>
+
+    <!-- TELA 3: SUCESSO -->
+    <div id="step-sucesso" class="step card" style="text-align: center;">
+      <h2>✅ Voto Registrado!</h2>
+      <p class="subtitle" style="margin-bottom:0;">Seu voto foi contabilizado com sucesso.</p>
+    </div>
+
+    <!-- TELA 4: ADMINISTRAÇÃO -->
+    <div id="step-admin" class="step card">
+      <h2>🔐 Painel de Gerenciamento</h2>
+      <p class="subtitle">Acesso restrito ao treinador</p>
+      
+      <div id="admin-login-box">
+        <label>Senha de Acesso</label>
+        <input type="password" id="senha-admin-input" placeholder="Digite a senha">
+        <button onclick="autenticarAdmin()">Acessar Painel</button>
+      </div>
+
+      <div id="admin-conteudo" style="display:none;">
+        <h3>1. Cadastrar Eleitora</h3>
+        <input type="text" id="cad-eleitor-nome" placeholder="Nome da Atleta">
+        <input type="text" id="cad-eleitor-codigo" placeholder="Código Único (Ex: número da camisa)">
+        <button onclick="cadastrarEleitora()">Salvar Eleitora</button>
+
+        <div class="divider"></div>
+
+        <h3>2. Cadastrar Candidata</h3>
+        <input type="text" id="cad-candidata-nome" placeholder="Nome da Candidata">
+        <button onclick="cadastrarCandidata()">Salvar Candidata</button>
+
+        <div class="divider"></div>
+
+        <button class="alt" onclick="carregarResultados()">📊 Ver Apuração dos Votos</button>
+        <div id="painel-resultados" style="margin-top: 15px;"></div>
+
+        <div class="divider"></div>
+
+        <h3>⚠️ Testes / Reset</h3>
+        <button class="danger" onclick="zerarSistema()">Zerar Votos e Candidatas</button>
+        
+        <button class="alt" onclick="voltarParaVotacao()" style="margin-top:16px;">Voltar para Tela Inicial</button>
+      </div>
+      <div id="msg-admin" class="msg"></div>
+    </div>
   </div>
 
-  <!-- SDKs DO FIREBASE -->
+  <!-- FIREBASE SDKs -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { 
-      getFirestore, collection, doc, getDocs, updateDoc, addDoc, query, where, runTransaction 
+      getFirestore, collection, doc, getDocs, updateDoc, addDoc, deleteDoc, query, where, runTransaction 
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -107,12 +229,9 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // DEFINA SUA SENHA AQUI:
-    const SENHA_ADMIN = "123456"; 
-
+    const SENHA_ADMIN = "3275"; 
     let eleitorAtual = null;
 
-    // --- GERENCIAMENTO DE TELAS ---
     window.alternarTelaAdmin = function() {
       document.querySelectorAll('.step').forEach(e => e.classList.remove('active'));
       document.getElementById('step-admin').classList.add('active');
@@ -123,7 +242,6 @@
       document.getElementById('step-login').classList.add('active');
     };
 
-    // --- LÓGICA DO ADMIN ---
     window.autenticarAdmin = function() {
       const pass = document.getElementById("senha-admin-input").value;
       if(pass === SENHA_ADMIN) {
@@ -147,48 +265,88 @@
         jaVotou: false
       });
 
-      alert(`Eleitora ${nome} cadastrada com sucesso!`);
+      alert(`Eleitora ${nome} cadastrada!`);
       document.getElementById("cad-eleitor-nome").value = "";
       document.getElementById("cad-eleitor-codigo").value = "";
     };
 
     window.cadastrarCandidata = async function() {
       const nome = document.getElementById("cad-candidata-nome").value.trim();
-      const cargo = document.getElementById("cad-candidata-cargo").value;
-
       if (!nome) return alert("Preencha o nome!");
 
-      await addDoc(collection(db, "candidatas"), {
-        nome: nome,
-        cargo: cargo
-      });
+      await addDoc(collection(db, "candidatas"), { nome: nome });
 
-      alert(`Candidata ${nome} adicionada para ${cargo}!`);
+      alert(`Candidata ${nome} cadastrada!`);
       document.getElementById("cad-candidata-nome").value = "";
     };
 
     window.carregarResultados = async function() {
-      const snapshot = await getDocs(collection(db, "votos"));
+      const snapshotVotos = await getDocs(collection(db, "votos"));
       const candidatasSnap = await getDocs(collection(db, "candidatas"));
       
-      let contagem = {};
+      let contagem = [];
+      
       candidatasSnap.forEach(d => {
-        contagem[d.id] = { nome: d.data().nome, cargo: d.data().cargo, votos: 0 };
+        contagem.push({ id: d.id, nome: d.data().nome, votos: 0 });
       });
 
-      snapshot.forEach(doc => {
+      snapshotVotos.forEach(doc => {
         const cId = doc.data().candidataId;
-        if(contagem[cId]) contagem[cId].votos += 1;
+        const item = contagem.find(c => c.id === cId);
+        if (item) item.votos += 1;
       });
 
-      let html = "<h4>Resultado Atual:</h4>";
-      for (let id in contagem) {
-        html += `<p><strong>${contagem[id].nome}</strong> (${contagem[id].cargo}): ${contagem[id].votos} votos</p>`;
-      }
+      // Ordena por maior número de votos
+      contagem.sort((a, b) => b.votos - a.votos);
+
+      let html = '<div style="margin-top:10px;">';
+      contagem.forEach((c, index) => {
+        let badgeHTML = '';
+        if (index === 0 && c.votos > 0) badgeHTML = '<span class="badge badge-gold">1ª Capitã</span>';
+        if (index === 1 && c.votos > 0) badgeHTML = '<span class="badge badge-silver">2ª Sub-Capitã</span>';
+
+        html += `
+          <div class="result-item">
+            <div>
+              <strong>${c.nome}</strong> ${badgeHTML}
+            </div>
+            <span><strong>${c.votos}</strong> votos</span>
+          </div>
+        `;
+      });
+      html += '</div>';
+
       document.getElementById("painel-resultados").innerHTML = html;
     };
 
-    // --- LÓGICA DE VOTAÇÃO ---
+    // ZERA OS DADOS PARA FACILITAR OS TESTES
+    window.zerarSistema = async function() {
+      if (!confirm("Tem certeza que deseja apagar os votos, excluir as candidatas e liberar todas as eleitoras para votar novamente?")) return;
+
+      try {
+        // 1. Limpa votos
+        const votosSnap = await getDocs(collection(db, "votos"));
+        for (let d of votosSnap.docs) { await deleteDoc(doc(db, "votos", d.id)); }
+
+        // 2. Limpa candidatas
+        const candSnap = await getDocs(collection(db, "candidatas"));
+        for (let d of candSnap.docs) { await deleteDoc(doc(db, "candidatas", d.id)); }
+
+        // 3. Reseta eleitores para "jaVotou: false"
+        const eleitoresSnap = await getDocs(collection(db, "eleitores"));
+        for (let d of eleitoresSnap.docs) { 
+          await updateDoc(doc(db, "eleitores", d.id), { jaVotou: false }); 
+        }
+
+        document.getElementById("painel-resultados").innerHTML = "";
+        alert("Sistema zerado com sucesso! Tudo limpo para novos testes.");
+      } catch (err) {
+        console.error(err);
+        alert("Erro ao zerar o sistema.");
+      }
+    };
+
+    // LÓGICA DE VOTAÇÃO
     window.validarEleitor = async function() {
       const entrada = document.getElementById("input-eleitor").value.trim().toLowerCase();
       const msg = document.getElementById("msg-login");
@@ -222,39 +380,37 @@
 
       } catch (err) {
         console.error(err);
-        msg.innerText = "Erro ao validar no banco de dados.";
+        msg.innerText = "Erro ao conectar com o banco de dados.";
       }
     };
 
     async function carregarCandidatas() {
       const snapshot = await getDocs(collection(db, "candidatas"));
-      const capitasDiv = document.getElementById("lista-capitas");
-      const subCapitasDiv = document.getElementById("lista-subcapitas");
+      const div = document.getElementById("lista-candidatas");
+      div.innerHTML = "";
 
-      capitasDiv.innerHTML = "";
-      subCapitasDiv.innerHTML = "";
+      if(snapshot.empty) {
+        div.innerHTML = "<p>Nenhuma candidata cadastrada no momento.</p>";
+        return;
+      }
 
       snapshot.forEach(doc => {
         const c = doc.data();
-        const radioHTML = `
-          <div style="margin: 8px 0;">
-            <label>
-              <input type="radio" name="${c.cargo}" value="${doc.id}"> ${c.nome}
-            </label>
-          </div>
+        div.innerHTML += `
+          <label class="radio-card">
+            <input type="radio" name="candidata" value="${doc.id}">
+            <span>${c.nome}</span>
+          </label>
         `;
-        if (c.cargo === "capita") capitasDiv.innerHTML += radioHTML;
-        if (c.cargo === "sub_capita") subCapitasDiv.innerHTML += radioHTML;
       });
     }
 
     window.confirmarVoto = async function() {
-      const capitaSel = document.querySelector('input[name="capita"]:checked');
-      const subCapitaSel = document.querySelector('input[name="sub_capita"]:checked');
+      const selecionada = document.querySelector('input[name="candidata"]:checked');
       const msg = document.getElementById("msg-voto");
 
-      if (!capitaSel || !subCapitaSel) {
-        msg.innerText = "Selecione uma opção para Capitã e Sub-Capitã.";
+      if (!selecionada) {
+        msg.innerText = "Por favor, selecione uma opção.";
         return;
       }
 
@@ -267,18 +423,15 @@
 
           transaction.update(eleitorRef, { jaVotou: true });
 
-          const votoCapitaRef = doc(collection(db, "votos"));
-          const votoSubRef = doc(collection(db, "votos"));
-
-          transaction.set(votoCapitaRef, { candidataId: capitaSel.value, cargo: "capita", data: new Date() });
-          transaction.set(votoSubRef, { candidataId: subCapitaSel.value, cargo: "sub_capita", data: new Date() });
+          const votoRef = doc(collection(db, "votos"));
+          transaction.set(votoRef, { candidataId: selecionada.value, data: new Date() });
         });
 
         document.getElementById("step-votacao").classList.remove("active");
         document.getElementById("step-sucesso").classList.add("active");
 
       } catch (err) {
-        msg.innerText = typeof err === "string" ? err : "Erro ao gravar o voto.";
+        msg.innerText = typeof err === "string" ? err : "Erro ao gravar voto.";
       }
     };
   </script>
