@@ -133,7 +133,18 @@
     }
     .badge-gold { background-color: #fef3c7; color: #d97706; }
     .badge-silver { background-color: #e2e8f0; color: #475569; }
+
+    /* Estilo para Área Printable do PDF */
+    #pdf-area {
+      background: #ffffff;
+      padding: 20px;
+      border-radius: 12px;
+    }
   </style>
+
+  <!-- Bibliotecas para Gerar PDF no Navegador -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
@@ -196,12 +207,21 @@
         <div class="divider"></div>
 
         <button class="alt" onclick="carregarResultados()">📊 Ver Apuração dos Votos</button>
-        <div id="painel-resultados" style="margin-top: 15px;"></div>
+        
+        <div id="pdf-area" style="display:none; margin-top:15px;">
+          <h2 style="font-size:1.2rem;">Resultado Oficial da Votação</h2>
+          <p class="subtitle" style="margin-bottom:12px;">Capitã e Sub-Capitã Selecionadas</p>
+          <div id="painel-resultados"></div>
+        </div>
+
+        <button id="btn-export-pdf" style="display:none; margin-top:10px;" onclick="gerarPDF()">📄 Gerar PDF do Resultado</button>
 
         <div class="divider"></div>
 
-        <h3>⚠️ Testes / Reset</h3>
-        <button class="danger" onclick="zerarSistema()">Zerar Votos e Candidatas</button>
+        <h3>⚠️ Gerenciamento e Limpeza</h3>
+        <button class="danger" onclick="zerarApenasVotos()" style="margin-bottom:8px;">Zerar Apenas Votos</button>
+        <button class="danger" onclick="limparCandidatas()" style="margin-bottom:8px;">Excluir Todas Candidatas</button>
+        <button class="danger" onclick="limparEleitoras()">Excluir Todas Eleitoras</button>
         
         <button class="alt" onclick="voltarParaVotacao()" style="margin-top:16px;">Voltar para Tela Inicial</button>
       </div>
@@ -296,7 +316,6 @@
         if (item) item.votos += 1;
       });
 
-      // Ordena por maior número de votos
       contagem.sort((a, b) => b.votos - a.votos);
 
       let html = '<div style="margin-top:10px;">';
@@ -317,32 +336,69 @@
       html += '</div>';
 
       document.getElementById("painel-resultados").innerHTML = html;
+      document.getElementById("pdf-area").style.display = "block";
+      document.getElementById("btn-export-pdf").style.display = "block";
     };
 
-    // ZERA OS DADOS PARA FACILITAR OS TESTES
-    window.zerarSistema = async function() {
-      if (!confirm("Tem certeza que deseja apagar os votos, excluir as candidatas e liberar todas as eleitoras para votar novamente?")) return;
+    // GERAR PDF NO CLIENTE
+    window.gerarPDF = function() {
+      const { jsPDF } = window.jspdf;
+      const element = document.getElementById("pdf-area");
+
+      html2canvas(element, { scale: 2 }).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const imgWidth = 190;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        
+        pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
+        pdf.save('Resultado_Votacao_Capita.pdf');
+      });
+    };
+
+    // FUNÇÕES INDEPENDENTES DE LIMPEZA
+    window.zerarApenasVotos = async function() {
+      if (!confirm("Deseja apagar os votos e permitir que as eleitoras votem de novo? (As candidatas serão mantidas)")) return;
 
       try {
-        // 1. Limpa votos
         const votosSnap = await getDocs(collection(db, "votos"));
         for (let d of votosSnap.docs) { await deleteDoc(doc(db, "votos", d.id)); }
 
-        // 2. Limpa candidatas
-        const candSnap = await getDocs(collection(db, "candidatas"));
-        for (let d of candSnap.docs) { await deleteDoc(doc(db, "candidatas", d.id)); }
-
-        // 3. Reseta eleitores para "jaVotou: false"
         const eleitoresSnap = await getDocs(collection(db, "eleitores"));
         for (let d of eleitoresSnap.docs) { 
           await updateDoc(doc(db, "eleitores", d.id), { jaVotou: false }); 
         }
 
         document.getElementById("painel-resultados").innerHTML = "";
-        alert("Sistema zerado com sucesso! Tudo limpo para novos testes.");
+        alert("Votos zerados com sucesso!");
       } catch (err) {
-        console.error(err);
-        alert("Erro ao zerar o sistema.");
+        alert("Erro ao zerar votos.");
+      }
+    };
+
+    window.limparCandidatas = async function() {
+      if (!confirm("Deseja apagar TODAS as candidatas marinhas da lista?")) return;
+
+      try {
+        const candSnap = await getDocs(collection(db, "candidatas"));
+        for (let d of candSnap.docs) { await deleteDoc(doc(db, "candidatas", d.id)); }
+
+        alert("Lista de candidatas apagada!");
+      } catch (err) {
+        alert("Erro ao apagar candidatas.");
+      }
+    };
+
+    window.limparEleitoras = async function() {
+      if (!confirm("Deseja apagar TODAS as eleitoras marinhas da lista de permissão?")) return;
+
+      try {
+        const eleitSnap = await getDocs(collection(db, "eleitores"));
+        for (let d of eleitSnap.docs) { await deleteDoc(doc(db, "eleitores", d.id)); }
+
+        alert("Lista de eleitoras apagada!");
+      } catch (err) {
+        alert("Erro ao apagar eleitoras.");
       }
     };
 
