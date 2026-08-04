@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema de Votação</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 20px auto; padding: 20px; background: #f9f9f9; }
+    .card { background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 15px; }
+    .step { display: none; }
+    .active { display: block; }
+    button { padding: 10px 15px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; width: 100%; margin-top: 10px; font-weight: bold; }
+    button.alt { background: #6c757d; }
+    input, select { width: 100%; padding: 10px; margin: 6px 0; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+    .msg { color: #d9534f; margin-top: 8px; font-weight: bold; }
+    .nav-admin { text-align: right; margin-bottom: 10px; }
+    .nav-admin a { color: #555; text-decoration: none; font-size: 14px; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <div class="nav-admin">
+    <a onclick="alternarTelaAdmin()">🔐 Painel do Treinador / Admin</a>
+  </div>
+
+  <!-- TELA 1: IDENTIFICAÇÃO DO ELEITOR -->
+  <div id="step-login" class="step active card">
+    <h2>Votação da Equipe</h2>
+    <label>Digite seu Código ou Nome:</label>
+    <input type="text" id="input-eleitor" placeholder="Ex: 101 ou Maria">
+    <button onclick="validarEleitor()">Entrar para Votar</button>
+    <div id="msg-login" class="msg"></div>
+  </div>
+
+  <!-- TELA 2: VOTACAO -->
+  <div id="step-votacao" class="step card">
+    <h2 id="boas-vindas"></h2>
+    
+    <h3>1. Selecione a Capitã:</h3>
+    <div id="lista-capitas"></div>
+
+    <h3>2. Selecione a Sub-Capitã:</h3>
+    <div id="lista-subcapitas"></div>
+
+    <button onclick="confirmarVoto()">Confirmar Voto</button>
+    <div id="msg-voto" class="msg"></div>
+  </div>
+
+  <!-- TELA 3: SUCESSO -->
+  <div id="step-sucesso" class="step card" style="text-align: center;">
+    <h2>✅ Voto Registrado!</h2>
+    <p>Seu voto foi contabilizado com sucesso.</p>
+  </div>
+
+  <!-- TELA 4: PAINEL DE ADMINISTRAÇÃO -->
+  <div id="step-admin" class="step card">
+    <h2>🔐 Painel de Gerenciamento</h2>
+    
+    <div id="admin-login-box">
+      <input type="password" id="senha-admin-input" placeholder="Digite a senha de administrador">
+      <button onclick="autenticarAdmin()">Acessar Painel</button>
+    </div>
+
+    <div id="admin-conteudo" style="display:none;">
+      <h3>1. Cadastrar Eleitora</h3>
+      <input type="text" id="cad-eleitor-nome" placeholder="Nome da Atleta">
+      <input type="text" id="cad-eleitor-codigo" placeholder="Código Único (Ex: número da camisa)">
+      <button onclick="cadastrarEleitora()">Salvar Eleitora</button>
+
+      <hr style="margin: 20px 0;">
+
+      <h3>2. Cadastrar Candidata (Dia do Evento)</h3>
+      <input type="text" id="cad-candidata-nome" placeholder="Nome da Candidata">
+      <select id="cad-candidata-cargo">
+        <option value="capita">Capitã</option>
+        <option value="sub_capita">Sub-Capitã</option>
+      </select>
+      <button onclick="cadastrarCandidata()">Salvar Candidata</button>
+
+      <hr style="margin: 20px 0;">
+
+      <button class="alt" onclick="carregarResultados()">📊 Ver Apuração dos Votos</button>
+      <div id="painel-resultados" style="margin-top: 15px;"></div>
+      
+      <button class="alt" onclick="voltarParaVotacao()" style="margin-top:20px;">Voltar para Tela de Votação</button>
+    </div>
+    <div id="msg-admin" class="msg"></div>
+  </div>
+
+  <!-- SDKs DO FIREBASE -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { 
+      getFirestore, collection, doc, getDocs, updateDoc, addDoc, query, where, runTransaction 
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD6FkYrHQ13WAMpUGKLY4tVUV84hfkyupc",
+      authDomain: "votacao-44fa4.firebaseapp.com",
+      projectId: "votacao-44fa4",
+      storageBucket: "votacao-44fa4.firebasestorage.app",
+      messagingSenderId: "1051141905764",
+      appId: "1:1051141905764:web:587fbc15abdcace4202e71",
+      measurementId: "G-0EEY25WJES"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // DEFINA SUA SENHA AQUI:
+    const SENHA_ADMIN = "123456"; 
+
+    let eleitorAtual = null;
+
+    // --- GERENCIAMENTO DE TELAS ---
+    window.alternarTelaAdmin = function() {
+      document.querySelectorAll('.step').forEach(e => e.classList.remove('active'));
+      document.getElementById('step-admin').classList.add('active');
+    };
+
+    window.voltarParaVotacao = function() {
+      document.querySelectorAll('.step').forEach(e => e.classList.remove('active'));
+      document.getElementById('step-login').classList.add('active');
+    };
+
+    // --- LÓGICA DO ADMIN ---
+    window.autenticarAdmin = function() {
+      const pass = document.getElementById("senha-admin-input").value;
+      if(pass === SENHA_ADMIN) {
+        document.getElementById("admin-login-box").style.display = "none";
+        document.getElementById("admin-conteudo").style.display = "block";
+        document.getElementById("msg-admin").innerText = "";
+      } else {
+        document.getElementById("msg-admin").innerText = "Senha incorreta!";
+      }
+    };
+
+    window.cadastrarEleitora = async function() {
+      const nome = document.getElementById("cad-eleitor-nome").value.trim();
+      const codigo = document.getElementById("cad-eleitor-codigo").value.trim().toLowerCase();
+
+      if (!nome || !codigo) return alert("Preencha nome e código!");
+
+      await addDoc(collection(db, "eleitores"), {
+        nome: nome,
+        codigo: codigo,
+        jaVotou: false
+      });
+
+      alert(`Eleitora ${nome} cadastrada com sucesso!`);
+      document.getElementById("cad-eleitor-nome").value = "";
+      document.getElementById("cad-eleitor-codigo").value = "";
+    };
+
+    window.cadastrarCandidata = async function() {
+      const nome = document.getElementById("cad-candidata-nome").value.trim();
+      const cargo = document.getElementById("cad-candidata-cargo").value;
+
+      if (!nome) return alert("Preencha o nome!");
+
+      await addDoc(collection(db, "candidatas"), {
+        nome: nome,
+        cargo: cargo
+      });
+
+      alert(`Candidata ${nome} adicionada para ${cargo}!`);
+      document.getElementById("cad-candidata-nome").value = "";
+    };
+
+    window.carregarResultados = async function() {
+      const snapshot = await getDocs(collection(db, "votos"));
+      const candidatasSnap = await getDocs(collection(db, "candidatas"));
+      
+      let contagem = {};
+      candidatasSnap.forEach(d => {
+        contagem[d.id] = { nome: d.data().nome, cargo: d.data().cargo, votos: 0 };
+      });
+
+      snapshot.forEach(doc => {
+        const cId = doc.data().candidataId;
+        if(contagem[cId]) contagem[cId].votos += 1;
+      });
+
+      let html = "<h4>Resultado Atual:</h4>";
+      for (let id in contagem) {
+        html += `<p><strong>${contagem[id].nome}</strong> (${contagem[id].cargo}): ${contagem[id].votos} votos</p>`;
+      }
+      document.getElementById("painel-resultados").innerHTML = html;
+    };
+
+    // --- LÓGICA DE VOTAÇÃO ---
+    window.validarEleitor = async function() {
+      const entrada = document.getElementById("input-eleitor").value.trim().toLowerCase();
+      const msg = document.getElementById("msg-login");
+      msg.innerText = "";
+
+      if (!entrada) return msg.innerText = "Digite seu código ou nome.";
+
+      try {
+        const q = query(collection(db, "eleitores"), where("codigo", "==", entrada));
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+          msg.innerText = "Eleitora não encontrada na lista permitida.";
+          return;
+        }
+
+        const docEleitor = querySnapshot.docs[0];
+        const dadosEleitor = docEleitor.data();
+
+        if (dadosEleitor.jaVotou) {
+          msg.innerText = "Você já registrou seu voto!";
+          return;
+        }
+
+        eleitorAtual = { id: docEleitor.id, ...dadosEleitor };
+        document.getElementById("boas-vindas").innerText = `Olá, ${eleitorAtual.nome}!`;
+        
+        await carregarCandidatas();
+        document.getElementById("step-login").classList.remove("active");
+        document.getElementById("step-votacao").classList.add("active");
+
+      } catch (err) {
+        console.error(err);
+        msg.innerText = "Erro ao validar no banco de dados.";
+      }
+    };
+
+    async function carregarCandidatas() {
+      const snapshot = await getDocs(collection(db, "candidatas"));
+      const capitasDiv = document.getElementById("lista-capitas");
+      const subCapitasDiv = document.getElementById("lista-subcapitas");
+
+      capitasDiv.innerHTML = "";
+      subCapitasDiv.innerHTML = "";
+
+      snapshot.forEach(doc => {
+        const c = doc.data();
+        const radioHTML = `
+          <div style="margin: 8px 0;">
+            <label>
+              <input type="radio" name="${c.cargo}" value="${doc.id}"> ${c.nome}
+            </label>
+          </div>
+        `;
+        if (c.cargo === "capita") capitasDiv.innerHTML += radioHTML;
+        if (c.cargo === "sub_capita") subCapitasDiv.innerHTML += radioHTML;
+      });
+    }
+
+    window.confirmarVoto = async function() {
+      const capitaSel = document.querySelector('input[name="capita"]:checked');
+      const subCapitaSel = document.querySelector('input[name="sub_capita"]:checked');
+      const msg = document.getElementById("msg-voto");
+
+      if (!capitaSel || !subCapitaSel) {
+        msg.innerText = "Selecione uma opção para Capitã e Sub-Capitã.";
+        return;
+      }
+
+      try {
+        await runTransaction(db, async (transaction) => {
+          const eleitorRef = doc(db, "eleitores", eleitorAtual.id);
+          const eleitorDoc = await transaction.get(eleitorRef);
+
+          if (eleitorDoc.data().jaVotou) throw "Voto já registrado!";
+
+          transaction.update(eleitorRef, { jaVotou: true });
+
+          const votoCapitaRef = doc(collection(db, "votos"));
+          const votoSubRef = doc(collection(db, "votos"));
+
+          transaction.set(votoCapitaRef, { candidataId: capitaSel.value, cargo: "capita", data: new Date() });
+          transaction.set(votoSubRef, { candidataId: subCapitaSel.value, cargo: "sub_capita", data: new Date() });
+        });
+
+        document.getElementById("step-votacao").classList.remove("active");
+        document.getElementById("step-sucesso").classList.add("active");
+
+      } catch (err) {
+        msg.innerText = typeof err === "string" ? err : "Erro ao gravar o voto.";
+      }
+    };
+  </script>
+</body>
+</html>
