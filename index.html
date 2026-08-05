@@ -193,10 +193,17 @@
       </div>
 
       <div id="admin-conteudo" style="display:none;">
-        <h3>1. Cadastrar Eleitora</h3>
-        <input type="text" id="cad-eleitor-nome" placeholder="Nome da Atleta">
+        <h3>1. Cadastrar Eleitor(a)</h3>
+        <input type="text" id="cad-eleitor-nome" placeholder="Nome da Atleta ou Treinador">
         <input type="text" id="cad-eleitor-codigo" placeholder="Código Único (Ex: número da camisa)">
-        <button onclick="cadastrarEleitora()">Salvar Eleitora</button>
+        
+        <label style="margin-top: 4px;">Tipo de Votante</label>
+        <select id="cad-eleitor-peso">
+          <option value="1">Atleta (Peso 1)</option>
+          <option value="2">Treinador (Peso 2 - Desempate)</option>
+        </select>
+
+        <button onclick="cadastrarEleitora()">Salvar Eleitor(a)</button>
 
         <div class="divider"></div>
 
@@ -276,18 +283,21 @@
     window.cadastrarEleitora = async function() {
       const nome = document.getElementById("cad-eleitor-nome").value.trim();
       const codigo = document.getElementById("cad-eleitor-codigo").value.trim().toLowerCase();
+      const peso = parseInt(document.getElementById("cad-eleitor-peso").value) || 1;
 
       if (!nome || !codigo) return alert("Preencha nome e código!");
 
       await addDoc(collection(db, "eleitores"), {
         nome: nome,
         codigo: codigo,
+        peso: peso,
         jaVotou: false
       });
 
-      alert(`Eleitora ${nome} cadastrada!`);
+      alert(`Eleitor(a) ${nome} cadastrado(a) com ${peso} voto(s)!`);
       document.getElementById("cad-eleitor-nome").value = "";
       document.getElementById("cad-eleitor-codigo").value = "";
+      document.getElementById("cad-eleitor-peso").value = "1";
     };
 
     window.cadastrarCandidata = async function() {
@@ -311,9 +321,11 @@
       });
 
       snapshotVotos.forEach(doc => {
-        const cId = doc.data().candidataId;
+        const dadosVoto = doc.data();
+        const cId = dadosVoto.candidataId;
+        const pesoVoto = dadosVoto.peso || 1; // Considera 1 se for um voto antigo sem o campo de peso
         const item = contagem.find(c => c.id === cId);
-        if (item) item.votos += 1;
+        if (item) item.votos += pesoVoto;
       });
 
       contagem.sort((a, b) => b.votos - a.votos);
@@ -329,7 +341,7 @@
             <div>
               <strong>${c.nome}</strong> ${badgeHTML}
             </div>
-            <span><strong>${c.votos}</strong> votos</span>
+            <span><strong>${c.votos}</strong> ponto(s)</span>
           </div>
         `;
       });
@@ -480,7 +492,11 @@
           transaction.update(eleitorRef, { jaVotou: true });
 
           const votoRef = doc(collection(db, "votos"));
-          transaction.set(votoRef, { candidataId: selecionada.value, data: new Date() });
+          transaction.set(votoRef, { 
+            candidataId: selecionada.value, 
+            peso: eleitorAtual.peso || 1,
+            data: new Date() 
+          });
         });
 
         document.getElementById("step-votacao").classList.remove("active");
