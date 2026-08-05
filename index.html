@@ -95,6 +95,19 @@
     }
     button.danger:hover { background-color: var(--danger-hover); }
 
+    .btn-sm-danger {
+      background-color: var(--danger);
+      color: white;
+      border: none;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      width: auto;
+      margin-top: 0;
+    }
+    .btn-sm-danger:hover { background-color: var(--danger-hover); }
+
     .nav-admin { text-align: center; margin-bottom: 16px; }
     .nav-admin a { color: var(--text-muted); text-decoration: none; font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: color 0.2s; }
     .nav-admin a:hover { color: var(--primary); }
@@ -117,7 +130,7 @@
     
     .divider { height: 1px; background-color: var(--border); margin: 24px 0; }
 
-    .result-item {
+    .result-item, .eleitor-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -133,6 +146,7 @@
     }
     .badge-gold { background-color: #fef3c7; color: #d97706; }
     .badge-silver { background-color: #e2e8f0; color: #475569; }
+    .badge-coach { background-color: #e0e7ff; color: #3730a3; }
 
     /* Estilo para Área Printable do PDF */
     #pdf-area {
@@ -207,6 +221,12 @@
 
         <div class="divider"></div>
 
+        <h3>📋 Eleitores Cadastrados</h3>
+        <button class="alt" onclick="carregarListaEleitores()" style="margin-bottom: 12px;">🔄 Listar/Atualizar Eleitores</button>
+        <div id="lista-eleitores-cadastrados"></div>
+
+        <div class="divider"></div>
+
         <h3>2. Cadastrar Candidata</h3>
         <input type="text" id="cad-candidata-nome" placeholder="Nome da Candidata">
         <button onclick="cadastrarCandidata()">Salvar Candidata</button>
@@ -275,6 +295,7 @@
         document.getElementById("admin-login-box").style.display = "none";
         document.getElementById("admin-conteudo").style.display = "block";
         document.getElementById("msg-admin").innerText = "";
+        carregarListaEleitores();
       } else {
         document.getElementById("msg-admin").innerText = "Senha incorreta!";
       }
@@ -298,6 +319,53 @@
       document.getElementById("cad-eleitor-nome").value = "";
       document.getElementById("cad-eleitor-codigo").value = "";
       document.getElementById("cad-eleitor-peso").value = "1";
+      carregarListaEleitores();
+    };
+
+    window.carregarListaEleitores = async function() {
+      const div = document.getElementById("lista-eleitores-cadastrados");
+      div.innerHTML = "<p style='text-align:center; font-size:0.85rem;'>Carregando...</p>";
+      
+      try {
+        const snapshot = await getDocs(collection(db, "eleitores"));
+        if (snapshot.empty) {
+          div.innerHTML = "<p style='text-align:center; font-size:0.85rem; color: var(--text-muted);'>Nenhum eleitor cadastrado.</p>";
+          return;
+        }
+
+        let html = "<div>";
+        snapshot.forEach(d => {
+          const e = d.data();
+          const badgeTreinador = (e.peso === 2) ? '<span class="badge badge-coach">Treinador (2 Votos)</span>' : '';
+          const statusVoto = e.jaVotou ? ' (Já votou)' : '';
+
+          html += `
+            <div class="eleitor-item">
+              <div>
+                <strong>${e.nome}</strong> <small>(${e.codigo})</small> ${badgeTreinador}
+                <div style="font-size:0.75rem; color:var(--text-muted);">${statusVoto}</div>
+              </div>
+              <button class="btn-sm-danger" onclick="excluirEleitorUnico('${d.id}', '${e.nome}')">Excluir</button>
+            </div>
+          `;
+        });
+        html += "</div>";
+        div.innerHTML = html;
+      } catch (err) {
+        div.innerHTML = "<p style='color:red; font-size:0.85rem;'>Erro ao carregar lista.</p>";
+      }
+    };
+
+    window.excluirEleitorUnico = async function(id, nome) {
+      if (!confirm(`Tem certeza que deseja apagar ${nome}?`)) return;
+
+      try {
+        await deleteDoc(doc(db, "eleitores", id));
+        alert(`${nome} foi removido(a)!`);
+        carregarListaEleitores();
+      } catch (err) {
+        alert("Erro ao excluir eleitor.");
+      }
     };
 
     window.cadastrarCandidata = async function() {
@@ -323,7 +391,7 @@
       snapshotVotos.forEach(doc => {
         const dadosVoto = doc.data();
         const cId = dadosVoto.candidataId;
-        const pesoVoto = dadosVoto.peso || 1; // Considera 1 se for um voto antigo sem o campo de peso
+        const pesoVoto = dadosVoto.peso || 1;
         const item = contagem.find(c => c.id === cId);
         if (item) item.votos += pesoVoto;
       });
@@ -383,6 +451,7 @@
 
         document.getElementById("painel-resultados").innerHTML = "";
         alert("Votos zerados com sucesso!");
+        carregarListaEleitores();
       } catch (err) {
         alert("Erro ao zerar votos.");
       }
@@ -409,6 +478,7 @@
         for (let d of eleitSnap.docs) { await deleteDoc(doc(db, "eleitores", d.id)); }
 
         alert("Lista de eleitoras apagada!");
+        carregarListaEleitores();
       } catch (err) {
         alert("Erro ao apagar eleitoras.");
       }
